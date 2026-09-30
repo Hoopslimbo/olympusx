@@ -42,6 +42,7 @@
   .btnrow { display: flex; gap: 10px; margin-top: 4px; }
   .btnrow .btn { flex: 1; }
   .err { color: var(--danger); font-size: 13px; margin: 10px 0 0; display: none; }
+  .cur { font-size: 11px; opacity: .65; }
   .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: .05em;
     padding: 5px 10px; border-radius: 20px; border: 1px solid var(--line); color: var(--mut); }
   .pill.ok { color: #5eeaa0; border-color: rgba(94,234,160,.4); }
@@ -72,11 +73,12 @@
 
   <!-- sign in -->
   <div class="card" id="authCard">
-    <h2>Sign in</h2>
-    <div class="d">Use your Olympus account. Only accounts allowed by the database can publish changes.</div>
+    <h2 id="aTitle">Sign in</h2>
+    <div class="d" id="aSub">Use your Olympus account. Only accounts allowed by the database can publish changes.</div>
     <label class="f">Email<input id="aEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
     <label class="f">Password<input id="aPass" type="password" autocomplete="current-password" placeholder="••••••••"></label>
     <button class="btn primary" id="aGo">Sign in</button>
+    <p class="d" style="margin-top:10px"><a href="#" id="aToggle" style="color:var(--accent)">New here? Create your Olympus account</a></p>
     <p class="err" id="aErr"></p>
   </div>
 
@@ -116,9 +118,10 @@
       <label class="f">Description<textarea id="fDesc" rows="3" placeholder="What is this game about?"></textarea></label>
       <label class="f">Version<input id="fVer" placeholder="1.0.0"></label>
       <label class="f">Price (USD, 0 = free)<input id="fPrice" type="number" min="0" step="0.01" placeholder="0"></label>
-      <label class="f">Icon image URL<input id="fIcon" placeholder="https://…"></label>
-      <label class="f">Wallpaper image URL<input id="fWall" placeholder="https://…"></label>
-      <label class="f">Game file URL<input id="fFile" placeholder="https://…"></label>
+      <label class="f">Icon image<input id="fIcon" type="file" accept="image/*"><span class="cur" id="fIconCur"></span></label>
+      <label class="f">Wallpaper image<input id="fWall" type="file" accept="image/*"><span class="cur" id="fWallCur"></span></label>
+      <label class="f">Game file<input id="fFile" type="file"><span class="cur" id="fFileCur"></span></label>
+      <div class="d" id="fStat" style="margin:10px 0 0"></div>
       <div class="btnrow">
         <button class="btn ghost" id="fCancel">Cancel</button>
         <button class="btn primary" id="fSave" style="width:auto;flex:2">Publish</button>
@@ -152,6 +155,29 @@ async function signIn(email, pass) {
   token = r.body.access_token; userEmail = r.body.user.email;
   localStorage.setItem('oxa_token', token); localStorage.setItem('oxa_email', userEmail);
   enter();
+}
+async function signUp(email, pass) {
+  showErr('aErr', '');
+  const r = await api('/auth/v1/signup', { method: 'POST', body: JSON.stringify({ email, password: pass }) });
+  if (!r.ok) { showErr('aErr', (r.body && r.body.msg) || (r.body && r.body.error_description) || 'Sign up failed'); return; }
+  if (r.body && r.body.access_token) {
+    token = r.body.access_token; userEmail = email;
+    localStorage.setItem('oxa_token', token); localStorage.setItem('oxa_email', userEmail);
+    enter(); return;
+  }
+  setAuthMode('signin');
+  showErr('aErr', '');
+  $('aSub').textContent = 'Account created — check your email for the confirmation link, then sign in.';
+}
+let authMode = 'signin';
+function setAuthMode(m) {
+  authMode = m;
+  const su = m === 'signup';
+  $('aTitle').textContent = su ? 'Create your Olympus account' : 'Sign in';
+  $('aGo').textContent = su ? 'Create account' : 'Sign in';
+  $('aToggle').textContent = su ? 'Already have an account? Sign in' : 'New here? Create your Olympus account';
+  if (!su) $('aSub').textContent = 'Use your Olympus account. Only accounts allowed by the database can publish changes.';
+  showErr('aErr', '');
 }
 function signOut() { token = ''; userEmail = ''; localStorage.removeItem('oxa_token'); localStorage.removeItem('oxa_email');
   $('main').hidden = true; $('authCard').hidden = false; }
@@ -187,6 +213,10 @@ function setWrite(w) {
   setPill('writePill', ok, ok ? 'WRITE OK' : 'WRITE BLOCKED');
   $('rlsCard').hidden = ok;
   if (!ok) $('rlsSql').textContent =
+    "-- 0) Create the game-files bucket (run once)\n" +
+    "insert into storage.buckets (id, name, public)\n" +
+    "values ('game-files', 'game-files', true)\n" +
+    "on conflict (id) do update set public = true;\n\n" +
     "-- 1) Let your account manage the games catalog\n" +
     "create policy \"Admins can manage games\"\n" +
     "on public.games for all\n" +
@@ -203,30 +233,56 @@ function setWrite(w) {
     "update storage.buckets set public = true where id = 'game-files';";
 }
 function slugify(s) { return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
+function fileName(url) { try { return decodeURIComponent(String(url).split('/').pop().split('?')[0]) || url; } catch (e) { return url; } }
+function fstat(msg) { const e = $('fStat'); e.textContent = msg; e.style.display = msg ? 'block' : 'none'; }
+async function uploadAsset(slug, kind, file) {
+  const ext = ((file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin');
+  const path = 'games/' + slug + '/' + kind + '.' + ext;
+  const r = await fetch(SUPA_URL + '/storage/v1/object/game-files/' + path, {
+    method: 'POST', headers: Object.assign(authHeaders(), { 'x-upsert': 'true', 'Content-Type': file.type || 'application/octet-stream' }), body: file });
+  if (!r.ok) throw new Error(kind + ' upload failed (' + r.status + ') — the game-files bucket may not exist yet; run the SQL fix shown above first.');
+  return SUPA_URL + '/storage/v1/object/public/game-files/' + path;
+}
 function openForm(g) {
   editingId = g ? g.id : null;
+  openForm._g = g || null;
   $('fTitle').textContent = g ? 'Edit game' : 'Add game';
   $('fSave').textContent = g ? 'Save changes' : 'Publish';
   $('fName').value = g ? g.name : ''; $('fSlug').value = g ? g.slug : ''; $('fDesc').value = g ? (g.description || '') : '';
   $('fVer').value = g ? (g.version || '') : '1.0.0'; $('fPrice').value = g ? (g.price || 0) : 0;
-  $('fIcon').value = g ? (g.icon_url || '') : ''; $('fWall').value = g ? (g.wallpaper_url || '') : ''; $('fFile').value = g ? (g.file_url || '') : '';
-  showErr('fErr', ''); $('formCard').hidden = false; $('addBtn').hidden = true;
+  $('fIcon').value = ''; $('fWall').value = ''; $('fFile').value = '';
+  $('fIconCur').textContent = g && g.icon_url ? 'Current: ' + fileName(g.icon_url) : 'No icon uploaded yet';
+  $('fWallCur').textContent = g && g.wallpaper_url ? 'Current: ' + fileName(g.wallpaper_url) : 'No wallpaper uploaded yet';
+  $('fFileCur').textContent = g && g.file_url ? 'Current: ' + fileName(g.file_url) : 'No game file uploaded yet';
+  showErr('fErr', ''); fstat('');
+  $('formCard').hidden = false; $('addBtn').hidden = true;
   $('formCard').scrollIntoView({ behavior: 'smooth' });
 }
-function closeForm() { editingId = null; $('formCard').hidden = true; $('addBtn').hidden = false; }
+function closeForm() { editingId = null; openForm._g = null; $('formCard').hidden = true; $('addBtn').hidden = false; }
 async function saveForm() {
   const name = $('fName').value.trim();
   if (!name) { showErr('fErr', 'Give the game a name.'); return; }
-  const data = { name, slug: $('fSlug').value.trim() || slugify(name), description: $('fDesc').value.trim(),
+  const g0 = openForm._g || null;
+  const slug = $('fSlug').value.trim() || slugify(name);
+  showErr('fErr', '');
+  let icon_url = g0 ? g0.icon_url : null, wallpaper_url = g0 ? g0.wallpaper_url : null, file_url = g0 ? g0.file_url : null;
+  try {
+    const fi = $('fIcon').files[0], fw = $('fWall').files[0], ff = $('fFile').files[0];
+    if (fi) { fstat('Uploading icon…'); icon_url = await uploadAsset(slug, 'icon', fi); }
+    if (fw) { fstat('Uploading wallpaper…'); wallpaper_url = await uploadAsset(slug, 'wallpaper', fw); }
+    if (ff) { fstat('Uploading game file…'); file_url = await uploadAsset(slug, 'game', ff); }
+  } catch (e) { fstat(''); showErr('fErr', e.message); return; }
+  fstat('Saving…');
+  const data = { name, slug, description: $('fDesc').value.trim(),
     version: $('fVer').value.trim() || '1.0.0', price: parseFloat($('fPrice').value) || 0,
-    icon_url: $('fIcon').value.trim() || null, wallpaper_url: $('fWall').value.trim() || null, file_url: $('fFile').value.trim() || null };
+    icon_url, wallpaper_url, file_url };
   showErr('fErr', '');
   let r;
   if (editingId) r = await api('/rest/v1/games?id=eq.' + editingId, { method: 'PATCH', body: JSON.stringify(data) });
   else r = await api('/rest/v1/games', { method: 'POST', headers: Object.assign(authHeaders(), { Prefer: 'return=representation' }), body: JSON.stringify(data) });
-  if (r.status === 42501 || (r.body && r.body.code === '42501')) { setWrite(r); showErr('fErr', 'Blocked by the database — see the SQL fix above.'); return; }
-  if (!r.ok) { showErr('fErr', 'Save failed: ' + (r.body && r.body.message ? r.body.message : r.status)); return; }
-  closeForm(); enter._writeKnown = false; await loadGames();
+  if (r.status === 42501 || (r.body && r.body.code === '42501')) { fstat(''); setWrite(r); showErr('fErr', 'Blocked by the database — see the SQL fix above.'); return; }
+  if (!r.ok) { fstat(''); showErr('fErr', 'Save failed: ' + (r.body && r.body.message ? r.body.message : r.status)); return; }
+  fstat(''); closeForm(); enter._writeKnown = false; await loadGames();
 }
 async function delGame(id, g) {
   if (!confirm('Delete "' + (g ? g.name : 'this game') + '" from the store?')) return;
@@ -284,7 +340,8 @@ async function publishVersion() {
     $('pFile').value = ''; enter._writeKnown = false; await loadGames();
   } catch (e) { showErr('pErr', e.message); st(''); }
 }
-$('aGo').onclick = () => signIn($('aEmail').value.trim(), $('aPass').value);
+$('aGo').onclick = () => { const e = $('aEmail').value.trim(), p = $('aPass').value; authMode === 'signup' ? signUp(e, p) : signIn(e, p); };
+$('aToggle').onclick = e => { e.preventDefault(); setAuthMode(authMode === 'signup' ? 'signin' : 'signup'); };
 $('aPass').addEventListener('keydown', e => { if (e.key === 'Enter') $('aGo').click(); });
 $('aOut').onclick = signOut;
 $('addBtn').onclick = () => openForm(null);
