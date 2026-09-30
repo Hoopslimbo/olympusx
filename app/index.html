@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OlympusX</title>
+<link rel="stylesheet" href="css/x.css">
+</head>
+<body>
+<canvas id="wallpaper"></canvas>
+<div id="vignette"></div>
+
+<!-- Boot -->
+<div id="boot">
+  <img id="bootLogo" src="../assets/olympusx-logo.png" alt="OlympusX">
+  <div id="bootWord">OLYMPUS<span>X</span></div>
+  <div id="bootBar"><div id="bootFill"></div></div>
+</div>
+
+<!-- Login -->
+<div id="login" hidden>
+  <div class="login-card">
+    <img src="../assets/olympusx-logo.png" alt="OlympusX" class="login-logo">
+    <h1 id="loginTitle">Welcome to <span>OlympusX</span></h1>
+    <p class="muted" id="loginSub">Sign in with your Olympus account</p>
+    <input id="loginName" placeholder="Display name" data-focus hidden>
+    <input id="loginEmail" type="email" placeholder="Email" autocomplete="email" data-focus>
+    <input id="loginPass" type="password" placeholder="Password" autocomplete="current-password" data-focus>
+    <div id="loginErr" class="err" hidden></div>
+    <button id="loginGo" class="btn primary" data-focus>Sign in</button>
+    <label class="login-remember"><input type="checkbox" id="loginStay" checked> Stay signed in on this console</label>
+    <button id="loginOffline" class="btn ghost" data-focus>Continue offline (preview)</button>
+    <div class="login-alt"><span id="loginAltText">New to Olympus?</span> <button id="loginToggle" data-focus>Create an account</button></div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app" hidden>
+  <nav id="rail" aria-label="Main">
+    <img src="../assets/olympusx-logo.png" class="rail-logo" alt="">
+    <button class="rail-btn" data-screen="home" data-focus><span class="ri">⌂</span><span class="rl">Home</span></button>
+    <button class="rail-btn" data-screen="library" data-focus><span class="ri">▤</span><span class="rl">Library</span></button>
+    <button class="rail-btn" data-screen="store" data-focus><span class="ri">◈</span><span class="rl">Store</span></button>
+    <button class="rail-btn" data-screen="friends" data-focus><span class="ri">⚇</span><span class="rl">Friends</span></button>
+    <div class="rail-sp"></div>
+    <button class="rail-btn" data-screen="settings" data-focus><span class="ri">⚙</span><span class="rl">Settings</span></button>
+  </nav>
+
+  <header id="topbar">
+    <div id="searchWrap">
+      <input id="search" placeholder="Search games, users…" data-focus>
+      <div id="searchTabs">
+        <button class="stab on" data-tab="games">Games</button>
+        <button class="stab" data-tab="users">Users</button>
+      </div>
+      <div id="searchResults" hidden></div>
+    </div>
+    <div id="topRight">
+      <span id="padBatt" title="Controller battery">🎮 --%</span>
+      <span id="clock">--:--</span>
+      <button id="avatarBtn" data-focus>?</button>
+    </div>
+  </header>
+
+  <main id="screens">
+    <section id="screen-home" class="screen"></section>
+    <section id="screen-library" class="screen" hidden></section>
+    <section id="screen-store" class="screen" hidden></section>
+    <section id="screen-friends" class="screen" hidden></section>
+    <section id="screen-settings" class="screen" hidden></section>
+  </main>
+
+  <div id="dlDock" hidden></div>
+</div>
+
+<!-- Game options mini-window -->
+<div id="optWrap" hidden>
+  <div id="optCard" role="dialog" aria-label="Game options">
+    <div id="optHead"></div>
+    <div id="optList"></div>
+  </div>
+</div>
+
+<!-- Game frame -->
+<div id="gameWrap" hidden>
+  <div id="gameBar"><span id="gameBarTitle"></span><button id="gameHome" class="btn ghost sm" data-focus>Home</button></div>
+  <iframe id="gameFrame" sandbox="allow-scripts allow-same-origin" allow="gamepad"></iframe>
+</div>
+
+<div id="modalRoot"></div>
+<div id="toastRoot"></div>
+<script src="js/chunks.js"></script>
+<script src="js/core.js"></script>
+<script src="js/screens.js"></script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+{"author":"Hoopslimbo","description":"OlympusX game console for PC","devDependencies":{"electron":"^38.0.0"},"main":"main.js","name":"olympusx","productName":"OlympusX","scripts":{"start":"electron ."},"version":"0.1.0"}

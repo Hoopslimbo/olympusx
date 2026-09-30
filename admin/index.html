@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#05070d">
+<title>OlympusX Admin</title>
+<style>
+  :root { --bg: #05070d; --surf: #0c111c; --line: rgba(255,255,255,.09); --txt: #f2f5fa; --mut: #8b94a7;
+          --accent: #2f6bff; --accent-glow: rgba(47,107,255,.35); --danger: #ff5470; --r: 16px; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; background: var(--bg); color: var(--txt); font-family: -apple-system, 'Segoe UI', Inter, system-ui, sans-serif;
+         min-height: 100vh; }
+  body::before { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: .5;
+    background:
+      repeating-linear-gradient(115deg, transparent 0 90px, rgba(47,107,255,.05) 90px 92px, transparent 92px 190px),
+      repeating-linear-gradient(65deg, transparent 0 120px, rgba(47,107,255,.04) 120px 122px, transparent 122px 240px); }
+  .wrap { max-width: 620px; margin: 0 auto; padding: 20px 16px 60px; position: relative; }
+  header { display: flex; align-items: center; gap: 12px; margin: 8px 0 18px; }
+  header img { width: 44px; height: 44px; border-radius: 12px; }
+  header h1 { font-size: 20px; margin: 0; }
+  header h1 span { color: var(--accent); }
+  header p { margin: 2px 0 0; font-size: 12px; color: var(--mut); }
+  header .sp { flex: 1; }
+  .card { background: var(--surf); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; margin-bottom: 14px; }
+  .card h2 { margin: 0 0 4px; font-size: 16px; }
+  .card .d { font-size: 13px; color: var(--mut); margin-bottom: 12px; line-height: 1.5; }
+  label.f { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--mut); margin-bottom: 12px; }
+  input, textarea, select { background: rgba(255,255,255,.06); border: 1px solid var(--line); border-radius: 12px;
+    padding: 13px 14px; color: var(--txt); font-size: 16px; font-family: inherit; width: 100%; }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); outline: none; }
+  select option { background: var(--surf); }
+  textarea { resize: vertical; }
+  .btn { display: inline-block; border: none; border-radius: 12px; padding: 13px 20px; font-size: 15px; font-weight: 700;
+    cursor: pointer; font-family: inherit; }
+  .btn.primary { background: var(--accent); color: #fff; box-shadow: 0 4px 20px var(--accent-glow); width: 100%; }
+  .btn.ghost { background: rgba(255,255,255,.06); color: var(--txt); border: 1px solid var(--line); }
+  .btn.sm { padding: 9px 14px; font-size: 13px; width: auto; }
+  .btn.danger { background: rgba(255,84,112,.12); border: 1px solid rgba(255,84,112,.4); color: #ff8ba0; }
+  .btnrow { display: flex; gap: 10px; margin-top: 4px; }
+  .btnrow .btn { flex: 1; }
+  .err { color: var(--danger); font-size: 13px; margin: 10px 0 0; display: none; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: .05em;
+    padding: 5px 10px; border-radius: 20px; border: 1px solid var(--line); color: var(--mut); }
+  .pill.ok { color: #5eeaa0; border-color: rgba(94,234,160,.4); }
+  .pill.bad { color: #ff8ba0; border-color: rgba(255,84,112,.4); }
+  .glist { display: flex; flex-direction: column; gap: 10px; }
+  .grow { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,.03);
+    border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+  .grow img, .grow .eic { width: 52px; height: 52px; border-radius: 12px; object-fit: cover; flex: none;
+    background: rgba(255,255,255,.06); display: grid; place-items: center; font-size: 26px; }
+  .grow .m { flex: 1; min-width: 0; }
+  .grow .m b { font-size: 15px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .grow .m span { font-size: 12px; color: var(--mut); }
+  .grow .acts { display: flex; gap: 8px; }
+  .empty { text-align: center; color: var(--mut); font-size: 14px; padding: 26px; border: 1px dashed var(--line); border-radius: var(--r); }
+  .sql { background: #02040a; border: 1px solid var(--line); border-radius: 10px; padding: 12px; font-family: ui-monospace, monospace;
+    font-size: 11.5px; line-height: 1.6; white-space: pre-wrap; word-break: break-all; color: #c9d4e8; margin: 10px 0; }
+  .topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .topbar .who { font-size: 13px; color: var(--mut); flex: 1; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="olympusx-logo.png" alt="" onerror="this.style.display='none'">
+    <div><h1>Olympus<span>X</span> Admin</h1><p>Game catalog manager</p></div>
+  </header>
+
+  <!-- sign in -->
+  <div class="card" id="authCard">
+    <h2>Sign in</h2>
+    <div class="d">Use your Olympus account. Only accounts allowed by the database can publish changes.</div>
+    <label class="f">Email<input id="aEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
+    <label class="f">Password<input id="aPass" type="password" autocomplete="current-password" placeholder="••••••••"></label>
+    <button class="btn primary" id="aGo">Sign in</button>
+    <p class="err" id="aErr"></p>
+  </div>
+
+  <!-- main -->
+  <div id="main" hidden>
+    <div class="topbar">
+      <span class="pill" id="readPill">READ …</span>
+      <span class="pill" id="writePill">WRITE …</span>
+      <span class="who" id="who"></span>
+      <button class="btn ghost sm" id="aOut">Sign out</button>
+    </div>
+    <div class="card" id="rlsCard" hidden>
+      <h2>Publishing is blocked</h2>
+      <div class="d">Your account can read the catalog but the database won't let it write yet. Run this once in your Supabase dashboard → SQL Editor, then come back:</div>
+      <div class="sql" id="rlsSql"></div>
+      <button class="btn ghost sm" id="copySql">Copy SQL</button>
+    </div>
+    <div class="card">
+      <h2>Games <span style="color:var(--mut);font-weight:400" id="gCount"></span></h2>
+      <div class="d">What you publish here appears in the OlympusX store.</div>
+      <div class="glist" id="gList"></div>
+    </div>
+    <div class="card">
+      <h2>Publish new version</h2>
+      <div class="d">Pick a game and its new file. Only the changed 1MB chunks upload — players on the old version download just the difference, like a console update.</div>
+      <label class="f">Game<select id="pGame"></select></label>
+      <label class="f">Version<input id="pVer" placeholder="2.0.2"></label>
+      <label class="f">Game file<input id="pFile" type="file" accept=".html,.zip"></label>
+      <button class="btn primary" id="pGo">Publish update</button>
+      <div class="d" id="pStat" style="margin:10px 0 0"></div>
+      <p class="err" id="pErr"></p>
+    </div>
+    <div class="card" id="formCard" hidden>
+      <h2 id="fTitle">Add game</h2>
+      <label class="f">Name<input id="fName" placeholder="Game title"></label>
+      <label class="f">Slug (url name)<input id="fSlug" placeholder="my-game"></label>
+      <label class="f">Description<textarea id="fDesc" rows="3" placeholder="What is this game about?"></textarea></label>
+      <label class="f">Version<input id="fVer" placeholder="1.0.0"></label>
+      <label class="f">Price (USD, 0 = free)<input id="fPrice" type="number" min="0" step="0.01" placeholder="0"></label>
+      <label class="f">Icon image URL<input id="fIcon" placeholder="https://…"></label>
+      <label class="f">Wallpaper image URL<input id="fWall" placeholder="https://…"></label>
+      <label class="f">Game file URL<input id="fFile" placeholder="https://…"></label>
+      <div class="btnrow">
+        <button class="btn ghost" id="fCancel">Cancel</button>
+        <button class="btn primary" id="fSave" style="width:auto;flex:2">Publish</button>
+      </div>
+      <p class="err" id="fErr"></p>
+    </div>
+    <button class="btn primary" id="addBtn">+ Add game</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+const SUPA_URL = 'https://zzsvqnnrfngfxtucszgr.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp6c3Zxbm5yZm5nZnh0dWNzemdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2MDAzNTksImV4cCI6MjEwNjE3NjM1OX0.R-MCzou_q_ObnwXKCQRsRYy0Bwnand-1ktiatLfQ0aU';
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let token = localStorage.getItem('oxa_token') || '', userEmail = localStorage.getItem('oxa_email') || '', editingId = null;
+
+function authHeaders() { return { apikey: SUPA_KEY, Authorization: 'Bearer ' + (token || SUPA_KEY), 'Content-Type': 'application/json' }; }
+async function api(path, opts) {
+  const r = await fetch(SUPA_URL + path, Object.assign({ headers: authHeaders() }, opts || {}));
+  let body = null; try { body = await r.json(); } catch (e) {}
+  return { ok: r.ok, status: r.status, body };
+}
+function showErr(id, msg) { const e = $(id); e.textContent = msg; e.style.display = msg ? 'block' : 'none'; }
+
+async function signIn(email, pass) {
+  showErr('aErr', '');
+  const r = await api('/auth/v1/token?grant_type=password', { method: 'POST', body: JSON.stringify({ email, password: pass }) });
+  if (!r.ok) { showErr('aErr', (r.body && r.body.msg) || (r.body && r.body.error_description) || 'Sign in failed'); return; }
+  token = r.body.access_token; userEmail = r.body.user.email;
+  localStorage.setItem('oxa_token', token); localStorage.setItem('oxa_email', userEmail);
+  enter();
+}
+function signOut() { token = ''; userEmail = ''; localStorage.removeItem('oxa_token'); localStorage.removeItem('oxa_email');
+  $('main').hidden = true; $('authCard').hidden = false; }
+
+async function enter() {
+  $('authCard').hidden = true; $('main').hidden = false; $('who').textContent = userEmail;
+  await loadGames();
+}
+function setPill(id, ok, label) { const p = $(id); p.className = 'pill ' + (ok == null ? '' : ok ? 'ok' : 'bad'); p.textContent = label; }
+
+async function loadGames() {
+  const r = await api('/rest/v1/games?select=*&order=name');
+  if (!r.ok) { setPill('readPill', false, 'READ BLOCKED'); $('gList').innerHTML = '<div class="empty">Could not load the catalog.</div>'; return; }
+  setPill('readPill', true, 'READ OK');
+  const games = r.body;
+  $('gCount').textContent = '· ' + games.length;
+  $('gList').innerHTML = games.length ? games.map(g =>
+    '<div class="grow">' + (g.icon_url ? '<img src="' + esc(g.icon_url) + '" alt="" loading="lazy">' : '<div class="eic">🎮</div>') +
+    '<div class="m"><b>' + esc(g.name) + '</b><span>v' + esc(g.version || '—') + (g.price ? ' · $' + g.price : ' · Free') + '</span></div>' +
+    '<div class="acts"><button class="btn ghost sm" data-edit="' + g.id + '">Edit</button>' +
+    '<button class="btn danger sm" data-del="' + g.id + '">Delete</button></div></div>').join('')
+    : '<div class="empty">No games yet. Add your first one below.</div>';
+  document.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => openForm(games.find(g => g.id === b.dataset.edit)));
+  document.querySelectorAll('[data-del]').forEach(b => b.onclick = () => delGame(b.dataset.del, games.find(g => g.id === b.dataset.del)));
+  publishVersion._games = games;
+  $('pGame').innerHTML = games.map(g => '<option value="' + g.id + '">' + esc(g.name) + ' (v' + esc(g.version || '?') + ')</option>').join('');
+  setWrite(null); // write access is determined when you publish, not on every open
+}
+function setWrite(w) {
+  enter._writeKnown = true;
+  if (!w) { setPill('writePill', null, 'WRITE …'); $('rlsCard').hidden = true; return; }
+  const ok = w.ok || w.status === 204;
+  setPill('writePill', ok, ok ? 'WRITE OK' : 'WRITE BLOCKED');
+  $('rlsCard').hidden = ok;
+  if (!ok) $('rlsSql').textContent =
+    "-- 1) Let your account manage the games catalog\n" +
+    "create policy \"Admins can manage games\"\n" +
+    "on public.games for all\n" +
+    "to authenticated\n" +
+    "using (auth.jwt() ->> 'email' = '" + userEmail + "')\n" +
+    "with check (auth.jwt() ->> 'email' = '" + userEmail + "');\n\n" +
+    "-- 2) Let your account upload game files (update chunks + manifests)\n" +
+    "create policy \"Admins can upload game files\"\n" +
+    "on storage.objects for all\n" +
+    "to authenticated\n" +
+    "using (bucket_id = 'game-files' and auth.jwt() ->> 'email' = '" + userEmail + "')\n" +
+    "with check (bucket_id = 'game-files' and auth.jwt() ->> 'email' = '" + userEmail + "');\n\n" +
+    "-- 3) Let players download updates without signing in\n" +
+    "update storage.buckets set public = true where id = 'game-files';";
+}
+function slugify(s) { return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
+function openForm(g) {
+  editingId = g ? g.id : null;
+  $('fTitle').textContent = g ? 'Edit game' : 'Add game';
+  $('fSave').textContent = g ? 'Save changes' : 'Publish';
+  $('fName').value = g ? g.name : ''; $('fSlug').value = g ? g.slug : ''; $('fDesc').value = g ? (g.description || '') : '';
+  $('fVer').value = g ? (g.version || '') : '1.0.0'; $('fPrice').value = g ? (g.price || 0) : 0;
+  $('fIcon').value = g ? (g.icon_url || '') : ''; $('fWall').value = g ? (g.wallpaper_url || '') : ''; $('fFile').value = g ? (g.file_url || '') : '';
+  showErr('fErr', ''); $('formCard').hidden = false; $('addBtn').hidden = true;
+  $('formCard').scrollIntoView({ behavior: 'smooth' });
+}
+function closeForm() { editingId = null; $('formCard').hidden = true; $('addBtn').hidden = false; }
+async function saveForm() {
+  const name = $('fName').value.trim();
+  if (!name) { showErr('fErr', 'Give the game a name.'); return; }
+  const data = { name, slug: $('fSlug').value.trim() || slugify(name), description: $('fDesc').value.trim(),
+    version: $('fVer').value.trim() || '1.0.0', price: parseFloat($('fPrice').value) || 0,
+    icon_url: $('fIcon').value.trim() || null, wallpaper_url: $('fWall').value.trim() || null, file_url: $('fFile').value.trim() || null };
+  showErr('fErr', '');
+  let r;
+  if (editingId) r = await api('/rest/v1/games?id=eq.' + editingId, { method: 'PATCH', body: JSON.stringify(data) });
+  else r = await api('/rest/v1/games', { method: 'POST', headers: Object.assign(authHeaders(), { Prefer: 'return=representation' }), body: JSON.stringify(data) });
+  if (r.status === 42501 || (r.body && r.body.code === '42501')) { setWrite(r); showErr('fErr', 'Blocked by the database — see the SQL fix above.'); return; }
+  if (!r.ok) { showErr('fErr', 'Save failed: ' + (r.body && r.body.message ? r.body.message : r.status)); return; }
+  closeForm(); enter._writeKnown = false; await loadGames();
+}
+async function delGame(id, g) {
+  if (!confirm('Delete "' + (g ? g.name : 'this game') + '" from the store?')) return;
+  const r = await api('/rest/v1/games?id=eq.' + id, { method: 'DELETE' });
+  if (r.status === 42501 || (r.body && r.body.code === '42501')) { setWrite(r); alert('Blocked by the database — see the SQL fix at the top.'); return; }
+  if (!r.ok) { alert('Delete failed: ' + r.status); return; }
+  await loadGames();
+}
+
+/* ---------- chunked publish ---------- */
+const P_CHUNK = 1024 * 1024;
+async function sha256hex(buf) {
+  const h = await crypto.subtle.digest('SHA-256', buf);
+  return [...new Uint8Array(h)].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+function st(msg) { $('pStat').textContent = msg; }
+async function publishVersion() {
+  showErr('pErr', ''); st('');
+  const gid = $('pGame').value, ver = $('pVer').value.trim(), file = $('pFile').files[0];
+  if (!gid) { showErr('pErr', 'Pick a game.'); return; }
+  if (!ver) { showErr('pErr', 'Enter the new version.'); return; }
+  if (!file) { showErr('pErr', 'Choose the game file.'); return; }
+  const g = (publishVersion._games || []).find(x => x.id === gid);
+  if (!g) { showErr('pErr', 'Game not found — reload.'); return; }
+  try {
+    st('Hashing ' + file.name + '…');
+    const ab = await file.arrayBuffer();
+    const chunks = [];
+    for (let off = 0; off < ab.byteLength; off += P_CHUNK) {
+      const buf = ab.slice(off, off + P_CHUNK);
+      chunks.push({ h: await sha256hex(buf), buf });
+      if (chunks.length % 8 === 0) st('Hashing… ' + chunks.length + ' chunks');
+    }
+    // upload only chunks the server doesn't have yet
+    let up = 0;
+    for (let i = 0; i < chunks.length; i++) {
+      const c = chunks[i];
+      const head = await fetch(SUPA_URL + '/storage/v1/object/public/game-files/chunks/' + c.h, { method: 'HEAD', headers: { apikey: SUPA_KEY } });
+      if (head.ok) continue;
+      const upr = await fetch(SUPA_URL + '/storage/v1/object/game-files/chunks/' + c.h, {
+        method: 'POST', headers: Object.assign(authHeaders(), { 'x-upsert': 'true', 'Content-Type': 'application/octet-stream' }), body: c.buf });
+      if (!upr.ok) throw new Error('chunk upload failed (' + upr.status + ') — check storage permissions');
+      up++;
+      st('Uploading new chunks… ' + up + ' of ' + chunks.length);
+    }
+    st('Writing manifest…');
+    const manifest = { v: ver, chunk: P_CHUNK, size: ab.byteLength, chunks: chunks.map(c => c.h) };
+    const mr = await fetch(SUPA_URL + '/storage/v1/object/game-files/games/' + g.slug + '/manifest.json', {
+      method: 'POST', headers: Object.assign(authHeaders(), { 'x-upsert': 'true', 'Content-Type': 'application/json' }), body: JSON.stringify(manifest) });
+    if (!mr.ok) throw new Error('manifest upload failed (' + mr.status + ')');
+    st('Updating catalog…');
+    const pr = await api('/rest/v1/games?id=eq.' + gid, { method: 'PATCH', body: JSON.stringify({ version: ver }) });
+    if (!pr.ok) throw new Error('catalog update failed (' + pr.status + ')');
+    st('Published ' + g.name + ' v' + ver + ' — ' + up + ' new chunks uploaded, ' + (chunks.length - up) + ' reused.');
+    $('pFile').value = ''; enter._writeKnown = false; await loadGames();
+  } catch (e) { showErr('pErr', e.message); st(''); }
+}
+$('aGo').onclick = () => signIn($('aEmail').value.trim(), $('aPass').value);
+$('aPass').addEventListener('keydown', e => { if (e.key === 'Enter') $('aGo').click(); });
+$('aOut').onclick = signOut;
+$('addBtn').onclick = () => openForm(null);
+$('fCancel').onclick = closeForm;
+$('fSave').onclick = saveForm;
+$('fName').addEventListener('input', e => { if (!editingId) $('fSlug').value = slugify(e.target.value); });
+$('pGo').onclick = publishVersion;
+$('copySql').onclick = () => { navigator.clipboard.writeText($('rlsSql').textContent).then(() => $('copySql').textContent = 'Copied'); };
+if (token) enter();
+</script>
+</body>
+</html>
