@@ -6,8 +6,13 @@
       "pc-app/main.js",
       "pc-app/preload.js",
       "pc-app/updater.js",
-      "app/**/*",
       "assets/olympusx-logo.png"
+    ],
+    "extraResources": [
+      {
+        "from": "app",
+        "to": "app"
+      }
     ],
     "nsis": {
       "allowToChangeInstallationDirectory": true,
@@ -39,5 +44,5 @@
   "scripts": {
     "dist": "electron-builder --win"
   },
-  "version": "0.1.3"
+  "version": "0.1.4"
 }
