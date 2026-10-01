@@ -27,7 +27,7 @@ function createWindow() {
       contextIsolation: true
     }
   });
-  win.loadFile(path.join(__dirname, '..', 'app', 'index.html'));
+  win.loadFile(path.join(updater.appDir(), 'index.html'));
   mainWin = win;
   win.on('closed', () => { if (mainWin === win) mainWin = null; });
   // Automated-test hook: only active when OX_TEST_FILE is set (never in production).
@@ -52,7 +52,7 @@ app.whenReady().then(() => {
   // Silent check on launch: the console surface tells the player if one is ready.
   setTimeout(async () => {
     try {
-      const r = await updater.checkForUpdates(app.getVersion());
+      const r = await updater.checkForUpdates(consoleVer());
       if (r.updateAvailable) sendUpdate({ type: 'update-available', version: r.version });
     } catch (e) {}
   }, 8000);
@@ -65,16 +65,19 @@ ipcMain.on('olympusx-open-external', (e, url) => {
 
 // Console self-update IPC. Delta chunks from the update feed (GitHub
 // releases in production, OX_FEED_BASE override for tests).
-ipcMain.handle('oxx-app-version', () => app.getVersion());
+// The console version comes from the writable .console-version file when an
+// update has been installed; otherwise the packaged app version.
+const consoleVer = () => updater.consoleVersion(app.getVersion());
+ipcMain.handle('oxx-app-version', () => consoleVer());
 ipcMain.handle('oxx-update-check', async () => {
   try {
-    const r = await updater.checkForUpdates(app.getVersion());
+    const r = await updater.checkForUpdates(consoleVer());
     return { ok: true, updateAvailable: r.updateAvailable, version: r.version };
   } catch (e) { return { ok: false, reason: String((e && e.message) || e).slice(0, 200) }; }
 });
 ipcMain.handle('oxx-update-download', async () => {
   try {
-    const r = await updater.downloadUpdate(app.getVersion(), p => {
+    const r = await updater.downloadUpdate(consoleVer(), p => {
       sendUpdate({ type: 'download-progress', percent: Math.round(p * 100) });
     });
     if (!r.updateAvailable) return { ok: true, updateAvailable: false };

@@ -381,7 +381,12 @@ function setConsole() {
     setConsole();
   };
   const rst = $('[data-cu-restart]', b);
-  if (rst) rst.onclick = async () => { try { await pc.updateInstall(); } catch (e) { st.error = 'Restart failed'; setConsole(); } };
+  if (rst) rst.onclick = async () => {
+    try {
+      const r = await pc.updateInstall();
+      if (!r || !r.ok) { st.error = (r && r.reason) || 'Install failed'; setConsole(); }
+    } catch (e) { st.error = 'Restart failed'; setConsole(); }
+  };
 }
 async function startConsoleDownload() {
   const pc = window.OlympusXPC;

@@ -22,9 +22,21 @@ function feedBase() {
   return process.env.OX_FEED_BASE || 'github:Hoopslimbo/olympusx';
 }
 function appDir() {
-  // Unpackaged dev layout: pc-app/../app. Packaged builds keep the same
-  // relative layout via extraResources.
+  // Packaged builds: app/ ships as extraResources (writable, outside app.asar).
+  // Dev: pc-app/../app.
+  try {
+    if (require('electron').app.isPackaged) return path.join(process.resourcesPath, 'app');
+  } catch (e) {}
   return path.join(__dirname, '..', 'app');
+}
+// The installed console version. The asar package.json is frozen at install
+// time, so successful updates record their version in a writable file.
+function consoleVersion(fallback) {
+  try {
+    const v = fs.readFileSync(path.join(appDir(), '.console-version'), 'utf8').trim();
+    if (v) return v;
+  } catch (e) {}
+  return fallback;
 }
 function sha256(buf) {
   return crypto.createHash('sha256').update(buf).digest('hex');
@@ -158,19 +170,14 @@ function copyDir(src, dst) {
   }
 }
 
-// Swap staged files into the app dir and bump the recorded version.
+// Swap staged files into the app dir and record the new version.
 // Returns true when the caller should relaunch/restart the console.
 function installUpdate(stage) {
   const manifest = JSON.parse(fs.readFileSync(path.join(stage, '.manifest.json'), 'utf8'));
   copyDir(stage, appDir());
-  const pkgPath = path.join(__dirname, 'package.json');
-  try {
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-    pkg.version = manifest.version;
-    fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
-  } catch (e) {}
+  try { fs.writeFileSync(path.join(appDir(), '.console-version'), manifest.version + '\n'); } catch (e) {}
   fs.rmSync(stage, { recursive: true, force: true });
   return manifest.version;
 }
 
-module.exports = { checkForUpdates, downloadUpdate, installUpdate, cmpVer, CHUNK_SIZE, appDir, feedBase };
+module.exports = { checkForUpdates, downloadUpdate, installUpdate, cmpVer, CHUNK_SIZE, appDir, consoleVersion, feedBase };
