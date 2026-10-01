@@ -229,7 +229,7 @@ function backAction() {
 }
 
 document.addEventListener('keydown', e => {
-  if ($('#boot') && !$('#boot').classList.contains('done')) return;
+  if (!bootDone) return;
   const tag = (e.target.tagName || '').toLowerCase();
   const typing = tag === 'input' && e.target.type !== 'range' || tag === 'textarea';
   const k = e.key;
@@ -257,9 +257,18 @@ document.addEventListener('contextmenu', e => {
 });
 
 /* ---------- gamepad ---------- */
-let padPrev = {}, padConnected = false;
-addEventListener('gamepadconnected', () => { padConnected = true; updatePadUI(); toast('Controller connected'); });
-addEventListener('gamepaddisconnected', () => { padConnected = false; updatePadUI(); });
+let padPrev = {}, padConnected = false, bootDone = false;
+function rumbleConnect(gp) {
+  try {
+    const va = gp && gp.vibrationActuator;
+    if (va && typeof va.playEffect === 'function') {
+      const r = va.playEffect('dual-rumble', { duration: 450, strongMagnitude: 0.9, weakMagnitude: 0.9 });
+      if (r && typeof r.catch === 'function') r.catch(() => {});
+    }
+  } catch (e) {}
+}
+addEventListener('gamepadconnected', e => { padConnected = true; updatePadUI(); toast('Controller connected'); rumbleConnect(e.gamepad); });
+addEventListener('gamepaddisconnected', () => { padConnected = false; padPrev = {}; updatePadUI(); });
 function updatePadUI() {
   const b = $('#padBatt');
   if (b) { b.textContent = padConnected ? '🎮 ●' : '🎮 --'; b.classList.toggle('low', false); }
@@ -269,7 +278,7 @@ function padLoop() {
     const pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : [];
     const p = pads[0];
     if (p) {
-      if (!padConnected) { padConnected = true; updatePadUI(); }
+      if (!padConnected) { padConnected = true; updatePadUI(); toast('Controller connected'); rumbleConnect(p); }
       const B = X.bindings;
       const press = i => p.buttons[i] && p.buttons[i].pressed;
       const edge = i => press(i) && !padPrev[i];
@@ -282,7 +291,7 @@ function padLoop() {
       };
       padPrev.axL = dz(ax[0]) && ax[0] < 0; padPrev.axR = dz(ax[0]) && ax[0] > 0;
       padPrev.axU = dz(ax[1]) && ax[1] < 0; padPrev.axD = dz(ax[1]) && ax[1] > 0;
-      if ($('#boot') && $('#boot').classList.contains('done')) {
+      if (bootDone) {
         if (d.left) moveFocus('left'); if (d.right) moveFocus('right');
         if (d.up) moveFocus('up'); if (d.down) moveFocus('down');
         if (edge(B.confirm)) activateFocused();
@@ -623,6 +632,7 @@ function boot() {
       clearInterval(iv);
       setTimeout(() => {
         $('#boot').classList.add('done');
+        bootDone = true;
         setTimeout(() => $('#boot').remove(), 700);
         const s = getSession();
         if (s && s.email) enterApp({ email: s.email, name: s.name || 'Player' });
