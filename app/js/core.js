@@ -153,22 +153,14 @@ function catalogToGame(row, keep) {
     hasUpdate: false, fileUrl: row.file_url || '', wallpaperUrl: row.wallpaper_url || '',
   }, keep || {});
 }
-function demoFriends() {
-  return [
-    { name: 'NovaStrike', status: 'Playing DEADZONE — Mission 2', online: true,
-      ach: [['🏆', 'Horde Breaker'], ['⚡', 'Speed Demon']],
-      recent: ['DEADZONE', 'Mech Arena Brawl', 'Starfall Odyssey', 'Neon Drift', 'Pixel Kart'] },
-    { name: 'PixelPunk', status: 'In party with 2 friends', online: true,
-      ach: [['🎯', 'Sharpshooter']],
-      recent: ['Neon Drift', 'DEADZONE'] },
-    { name: 'GhostByte', status: 'Last seen 3h ago', online: false,
-      ach: [['👻', 'Untouchable'], ['🏆', 'Horde Breaker'], ['💎', 'Perfectionist']],
-      recent: ['DEADZONE', 'Starfall Odyssey', 'Pixel Kart', 'Mech Arena Brawl'] },
-  ];
+function loadFriends() {
+  try { return JSON.parse(localStorage.getItem('olympusx_friends') || '[]'); }
+  catch (e) { return []; }
 }
+function saveFriends() { localStorage.setItem('olympusx_friends', JSON.stringify(X.friends)); }
 
 /* ---------- screens / navigation ---------- */
-const SCREENS = ['home', 'library', 'store', 'friends', 'settings'];
+const SCREENS = ['home', 'library', 'store', 'friends', 'settings', 'profile'];
 X.setScreen = function (name) {
   if (!SCREENS.includes(name)) return;
   X.screen = name;
@@ -180,7 +172,7 @@ X.setScreen = function (name) {
   if (first) setFocus(first);
 };
 function renderScreen(name) {
-  ({ home: renderHome, library: renderLibrary, store: renderStore, friends: renderFriends, settings: renderSettings })[name]();
+  ({ home: renderHome, library: renderLibrary, store: renderStore, friends: renderFriends, settings: renderSettings, profile: renderProfile })[name]();
 }
 
 /* directional focus (keyboard + controller) */
@@ -223,6 +215,7 @@ function activateFocused() {
 function backAction() {
   if (!$('#optWrap').hidden) { closeOptions(); return; }
   if (!$('#gameWrap').hidden) { closeGame(); return; }
+  if (X.screen === 'profile') { X.setScreen(X.profileFrom || 'home'); return; }
   if (X.screen === 'store' && storeDetail) { storeDetail = null; renderStore(); return; }
   if (X.screen === 'friends' && friendDetail) { friendDetail = null; renderFriends(); return; }
   blip('back');
@@ -582,7 +575,7 @@ async function enterApp(user) {
   X.user = user;
   $('#login').hidden = true;
   $('#app').hidden = false;
-  $('#avatarBtn').textContent = (user.name || '?')[0].toUpperCase();
+  updateAvatar(); // pic if set, else initial
   // live catalog from Supabase; fall back to the cached copy offline
   const rows = await fetchCatalog();
   const keep = {};
@@ -599,7 +592,7 @@ async function enterApp(user) {
   }
   refreshUsage();
   X.games.forEach(g => { if (g.installed) cachedGameURL(g).then(u => { if (u) g.blobUrl = u; }).catch(() => {}); });
-  X.friends = demoFriends();
+  X.friends = loadFriends();
   X.setScreen('home');
   toast('Welcome back, <b>' + esc(user.name) + '</b>');
 }
@@ -612,10 +605,41 @@ $('#loginOffline').addEventListener('click', () => {
   persistSession(user); enterApp(user);
 });
 $('#avatarBtn').addEventListener('click', () => {
-  confirmDlg('Sign out?', 'You will need to sign in again next time.', 'Sign out', () => {
-    localStorage.removeItem('olympusx_session'); location.reload();
-  });
+  if (X.screen !== 'profile') X.profileFrom = X.screen;
+  X.setScreen('profile');
 });
+
+/* ---------- profile picture ---------- */
+function getProfilePic() {
+  try { return localStorage.getItem('olympusx_profile_pic') || ''; } catch (e) { return ''; }
+}
+function updateAvatar() {
+  const b = $('#avatarBtn');
+  if (!b) return;
+  const pic = getProfilePic();
+  if (pic) b.innerHTML = '<img src="' + pic + '" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block">';
+  else b.textContent = ((X.user && X.user.name) || '?')[0].toUpperCase();
+}
+function handlePicFile(file) {
+  if (!file || !file.type || file.type.indexOf('image/') !== 0) { toast('Pick an image file'); return; }
+  const img = new Image();
+  const url = URL.createObjectURL(file);
+  img.onload = () => {
+    try {
+      const S = 256, cv = document.createElement('canvas');
+      cv.width = S; cv.height = S;
+      const ctx = cv.getContext('2d');
+      const side = Math.min(img.width, img.height);
+      ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, S, S);
+      localStorage.setItem('olympusx_profile_pic', cv.toDataURL('image/jpeg', 0.85));
+      updateAvatar(); renderProfile();
+      toast('Profile picture updated');
+    } catch (e) { toast('Couldn\'t use that image'); }
+    URL.revokeObjectURL(url);
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); toast('Couldn\'t read that image'); };
+  img.src = url;
+}
 
 /* ---------- boot ---------- */
 function boot() {

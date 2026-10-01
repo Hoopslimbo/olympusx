@@ -106,15 +106,47 @@ function renderStoreDetail(el) {
   });
 }
 
+/* ---------- PROFILE ---------- */
+function renderProfile() {
+  const el = $('#screen-profile');
+  const pic = getProfilePic();
+  const initial = esc(((X.user && X.user.name) || '?')[0].toUpperCase());
+  el.innerHTML = '<button class="back-link" data-focus data-back>‹ Back</button>' +
+    '<div class="fprof"><div class="fav" style="width:84px;height:84px;font-size:30px;overflow:hidden;padding:0">' +
+    (pic ? '<img src="' + pic + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block">' : initial) + '</div>' +
+    '<h2>' + esc(X.user.name) + '</h2><div class="st" style="color:var(--mut);font-size:13px">' + esc(X.user.email) + '</div>' +
+    '<div class="sec"><h4>Profile picture</h4>' +
+    '<label class="btn ghost sm" data-focus tabindex="0" style="cursor:pointer">Upload picture<input type="file" id="picUp" accept="image/*" hidden></label>' +
+    (pic ? ' <button class="btn ghost sm" data-focus data-picrm>Remove</button>' : '') + '</div>' +
+    '<div class="sec"><h4>Display name</h4>' +
+    '<div style="display:flex;gap:10px"><input id="nameUp" data-focus value="' + esc(X.user.name) + '" maxlength="24" style="flex:1;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:10px;padding:10px 14px;color:var(--txt)">' +
+    '<button class="btn primary sm" data-focus data-namesave>Save</button></div></div>' +
+    '<div class="sec"><h4>Session</h4><button class="btn ghost sm" data-focus data-signout>Sign out</button></div></div>';
+  $('[data-back]', el).onclick = () => X.setScreen(X.profileFrom || 'home');
+  $('#picUp', el).onchange = e => handlePicFile(e.target.files && e.target.files[0]);
+  const rm = $('[data-picrm]', el);
+  if (rm) rm.onclick = () => { try { localStorage.removeItem('olympusx_profile_pic'); } catch (e) {} updateAvatar(); renderProfile(); toast('Profile picture removed'); };
+  $('[data-namesave]', el).onclick = () => {
+    const nv = $('#nameUp', el).value.trim();
+    if (!nv) { toast('Pick a display name'); return; }
+    X.user.name = nv; persistSession(X.user); updateAvatar(); renderProfile();
+    toast('Display name updated');
+  };
+  $('[data-signout]', el).onclick = () => confirmDlg('Sign out?',
+    'You will need to sign in again next time.', 'Sign out',
+    () => { localStorage.removeItem('olympusx_session'); location.reload(); });
+}
+
 /* ---------- FRIENDS ---------- */
 function renderFriends() {
   const el = $('#screen-friends');
   if (friendDetail) { renderFriendDetail(el); return; }
   el.innerHTML = '<h2 class="row-title">Friends <span class="count">' + X.friends.length + '</span></h2>' +
-    X.friends.map(f =>
+    (X.friends.length ? X.friends.map(f =>
       '<div class="friend" data-focus data-fr="' + esc(f.name) + '" tabindex="0"><div class="fav">' + esc(f.name[0]) + '</div>' +
       '<div><div class="nm">' + esc(f.name) + '</div><div class="st">' +
-      (f.online ? '<span class="on">● </span>' : '') + esc(f.status) + '</div></div></div>').join('');
+      (f.online ? '<span class="on">● </span>' : '') + esc(f.status) + '</div></div></div>').join('')
+      : '<div class="empty-row">No friends yet.</div>');
   $$('[data-fr]', el).forEach(d => d.onclick = () => { friendDetail = d.dataset.fr; renderFriends(); });
 }
 function renderFriendDetail(el) {
@@ -128,9 +160,17 @@ function renderFriendDetail(el) {
     (f.ach.length ? f.ach.map(a => '<span class="ach">' + a[0] + ' ' + esc(a[1]) + '</span>').join('') : '<span class="muted">No achievements yet</span>') + '</div>' +
     '<div class="sec"><h4>Recently played</h4>' +
     f.recent.slice(0, 10).map((r, i) => '<div class="mini-game"><span class="dot">' + (i + 1) + '</span>' + esc(r) + '</div>').join('') + '</div>' +
-    '<div class="sec"><button class="btn ghost sm" data-focus data-invite>✉ Send party invite</button></div></div>';
+    '<div class="sec"><button class="btn ghost sm" data-focus data-invite>✉ Send party invite</button> ' +
+    '<button class="btn ghost sm" data-focus data-unfriend style="color:#ff8ba0">Remove friend</button></div></div>';
   $('[data-back]', el).onclick = () => { friendDetail = null; renderFriends(); };
   $('[data-invite]', el).onclick = () => toast('Party invite sent to <b>' + esc(f.name) + '</b>');
+  $('[data-unfriend]', el).onclick = () => confirmDlg('Remove ' + f.name + '?',
+    'They will stay in your recently played, but leave your friends list.', 'Remove',
+    () => {
+      X.friends = X.friends.filter(x => x.name !== f.name); saveFriends();
+      friendDetail = null; renderFriends();
+      toast('Removed <b>' + esc(f.name) + '</b>');
+    });
 }
 
 /* ---------- SETTINGS ---------- */
