@@ -18,8 +18,12 @@ jobs:
           node-version: 24
       - run: npm install
       - run: npx electron-builder --win --publish never
+      - name: Read version
+        id: ver
+        shell: pwsh
+        run: echo "version=$(node -p "require('./package.json').version")" >> $env:GITHUB_OUTPUT
       - name: Attach installer to release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.0
+          tag_name: v${{ steps.ver.outputs.version }}
           files: dist/OlympusX-Setup-*.exe
