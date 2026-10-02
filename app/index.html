@@ -44,6 +44,7 @@
     <button class="rail-btn" data-screen="friends" data-focus><span class="ri">⚇</span><span class="rl">Friends</span></button>
     <div class="rail-sp"></div>
     <button class="rail-btn" data-screen="settings" data-focus><span class="ri">⚙</span><span class="rl">Settings</span></button>
+    <button class="rail-btn" id="closeBtn" data-focus title="Close console"><span class="ri">⏻</span><span class="rl">Close</span></button>
   </nav>
 
   <header id="topbar">
@@ -86,6 +87,30 @@
 <div id="gameWrap" hidden>
   <div id="gameBar"><span id="gameBarTitle"></span><button id="gameHome" class="btn ghost sm" data-focus>Home</button></div>
   <iframe id="gameFrame" sandbox="allow-scripts allow-same-origin" allow="gamepad"></iframe>
+</div>
+
+<!-- In-game guide (controller home button while playing) -->
+<div id="guideWrap" hidden>
+  <div id="guideDim"></div>
+  <aside id="guidePanel">
+    <div class="guide-title">Guide</div>
+    <nav class="guide-nav">
+      <button data-focus data-gscreen="home"><span class="gi">⌂</span><span>Home</span></button>
+      <button data-focus data-gscreen="library"><span class="gi">▤</span><span>Library</span></button>
+      <button data-focus data-gscreen="store"><span class="gi">◈</span><span>Store</span></button>
+      <button data-focus data-gscreen="friends"><span class="gi">⚇</span><span>Friends</span></button>
+      <button data-focus data-gscreen="settings"><span class="gi">⚙</span><span>Settings</span></button>
+    </nav>
+    <div class="guide-mid"><button id="guideHomeBtn" data-focus title="Back to console home">⌂</button></div>
+    <div class="guide-recent">
+      <div class="gr-label">Recently played</div>
+      <div class="gr-row" id="guideRecentRow"></div>
+    </div>
+  </aside>
+  <div id="guideMini" hidden>
+    <div id="guideMiniHead"><b id="guideMiniTitle"></b><span class="muted">B / Esc — back</span></div>
+    <div id="guideMiniBody"></div>
+  </div>
 </div>
 
 <div id="modalRoot"></div>

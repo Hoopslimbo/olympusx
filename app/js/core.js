@@ -177,7 +177,8 @@ function renderScreen(name) {
 
 /* directional focus (keyboard + controller) */
 function focusables() {
-  return $$('[data-focus]').filter(e => e.offsetParent !== null && !e.disabled);
+  const root = guideOpen ? $('#guideWrap') : document;
+  return $$('[data-focus]', root).filter(e => e.offsetParent !== null && !e.disabled);
 }
 function setFocus(el) {
   if (X.focusEl) X.focusEl.classList.remove('kb-focus');
@@ -214,6 +215,8 @@ function activateFocused() {
 }
 function backAction() {
   if (!$('#optWrap').hidden) { closeOptions(); return; }
+  if (guideMiniName) { closeGuideMini(); return; }
+  if (guideOpen) { closeGuide(); return; }
   if (!$('#gameWrap').hidden) { closeGame(); return; }
   if (X.screen === 'profile') { X.setScreen(X.profileFrom || 'home'); return; }
   if (X.screen === 'store' && storeDetail) { storeDetail = null; renderStore(); return; }
@@ -248,6 +251,82 @@ document.addEventListener('contextmenu', e => {
   const t = e.target.closest('[data-game]');
   if (t) { e.preventDefault(); openOptionsFor(t.dataset.game); }
 });
+
+/* ---------- close console (rail button + controller home button) ---------- */
+function inHomeMenu() {
+  return bootDone && !guideOpen && X.screen === 'home' && !$('#app').hidden &&
+    $('#gameWrap').hidden && $('#optWrap').hidden && !$('#modalRoot').hasChildNodes();
+}
+function requestCloseConsole() {
+  confirmDlg('Close OlympusX?',
+    'The console will shut down. Your games, saves and profile stay in the cloud.',
+    'Close console', () => {
+      try {
+        if (window.OlympusXPC && typeof OlympusXPC.quit === 'function') OlympusXPC.quit();
+        else toast('Closing is only available in the PC app');
+      } catch (e) {}
+    });
+}
+$('#closeBtn').addEventListener('click', requestCloseConsole);
+
+/* ---------- in-game guide (home button while playing) ---------- */
+let guideOpen = false, guideMiniName = null, guideMiniSlot = null;
+function openGuide() {
+  if ($('#gameWrap').hidden || guideOpen) return;
+  renderGuideRecent();
+  $('#guideMini').hidden = true;
+  $('#guideWrap').hidden = false;
+  guideOpen = true;
+  blip('open');
+  const first = $('#guideWrap .guide-nav [data-focus]');
+  if (first) setFocus(first);
+}
+function closeGuide() {
+  if (!guideOpen) return;
+  closeGuideMini(true);
+  $('#guideWrap').hidden = true;
+  guideOpen = false;
+  blip('back');
+}
+function renderGuideRecent() {
+  const recent = X.games.filter(g => g.lastPlayed).sort((a, b) => b.lastPlayed - a.lastPlayed).slice(0, 8);
+  $('#guideRecentRow').innerHTML = recent.length ? recent.map(tileHTML).join('')
+    : '<div class="empty-row">Nothing played yet.</div>';
+}
+function openGuideMini(name) {
+  closeGuideMini(true);
+  const node = $('#screen-' + name);
+  if (!node) return;
+  guideMiniSlot = document.createComment('guide-slot');
+  node.replaceWith(guideMiniSlot);
+  node.hidden = false;
+  $('#guideMiniBody').appendChild(node);
+  guideMiniName = name;
+  renderScreen(name);
+  $('#guideMiniTitle').textContent = name[0].toUpperCase() + name.slice(1);
+  $('#guideMini').hidden = false;
+  blip('open');
+  const first = $('#guideMiniBody [data-focus]');
+  if (first) setFocus(first);
+}
+function closeGuideMini(silent) {
+  if (!guideMiniName) return;
+  const node = $('#screen-' + guideMiniName);
+  if (node && guideMiniSlot && guideMiniSlot.parentNode) guideMiniSlot.replaceWith(node);
+  else if (node) $('#screens').appendChild(node);
+  if (node) node.hidden = true;
+  guideMiniName = null; guideMiniSlot = null;
+  $('#guideMini').hidden = true;
+  if (!silent) blip('back');
+}
+function guideHome() {
+  closeGuide();
+  closeGame();
+  X.setScreen('home');
+}
+$$('#guideWrap .guide-nav [data-gscreen]').forEach(b => b.onclick = () => openGuideMini(b.dataset.gscreen));
+$('#guideHomeBtn').addEventListener('click', guideHome);
+$('#guideDim').addEventListener('click', closeGuide);
 
 /* ---------- gamepad ---------- */
 let padPrev = {}, padConnected = false, bootDone = false;
@@ -290,6 +369,10 @@ function padLoop() {
         if (edge(B.confirm)) activateFocused();
         if (edge(B.back)) backAction();
         if (edge(B.options)) openOptionsFor(X.focusEl && X.focusEl.dataset.game);
+        if (edge(16)) {
+          if (!$('#gameWrap').hidden) { guideOpen ? closeGuide() : openGuide(); }
+          else if (inHomeMenu()) requestCloseConsole();
+        }
       }
       p.buttons.forEach((btn, i) => padPrev[i] = btn.pressed);
     }
@@ -339,6 +422,7 @@ function tileAction(g) {
 /* ---------- game options mini-window (menu button on tile) ---------- */
 function openOptionsFor(gameId) {
   if (!gameId) return;
+  if (guideOpen) closeGuide();
   const g = X.games.find(x => x.id === gameId);
   if (!g) return;
   blip('open');
@@ -438,6 +522,7 @@ function uninstallGame(g) {
 
 /* ---------- launch ---------- */
 function launchGame(g) {
+  if (guideOpen) closeGuide();
   if (X.currentGame && X.currentGame.id !== g.id) {
     X.suspended = X.currentGame; // quick resume: suspend current
     toast('Suspended <b>' + esc(X.currentGame.name) + '</b>');
