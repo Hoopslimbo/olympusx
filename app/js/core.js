@@ -327,6 +327,24 @@ function guideHome() {
 $$('#guideWrap .guide-nav [data-gscreen]').forEach(b => b.onclick = () => openGuideMini(b.dataset.gscreen));
 $('#guideHomeBtn').addEventListener('click', guideHome);
 $('#guideDim').addEventListener('click', closeGuide);
+// Clicking a recent game in the guide closes the current game and opens that one.
+document.addEventListener('click', e => {
+  const t = e.target.closest && e.target.closest('#guideRecentRow [data-game]');
+  if (!t || !guideOpen) return;
+  e.stopPropagation();
+  const g = X.games.find(x => x.id === t.dataset.game);
+  if (!g) return;
+  closeGuide();
+  if (X.currentGame && X.currentGame.id === g.id) return; // already playing it
+  if (g.installed) {
+    X.suspended = null;
+    X.currentGame = null; // close outright, don't suspend
+    closeGame();
+    launchGame(g);
+  } else {
+    startDownload(g, false);
+  }
+}, true);
 
 /* ---------- gamepad ---------- */
 let padPrev = {}, padConnected = false, bootDone = false;
